@@ -1,0 +1,256 @@
+<!-- ... existing code ... -->
+        bgAudioBtn: document.getElementById('bgAudioBtn'),
+        ambientSelect: document.getElementById('ambientSelect'),
+        ambientVolume: document.getElementById('ambientVolume'),
+        
+        // Modal Foto de Perfil
+        changeAvatarBtnHero: document.getElementById('changeAvatarBtnHero'),
+        changeAvatarBtnAbout: document.getElementById('changeAvatarBtnAbout'),
+        avatarModal: document.getElementById('avatarModal'),
+        closeAvatarModalBtn: document.getElementById('closeAvatarModalBtn'),
+        avatarFileInput: document.getElementById('avatarFileInput'),
+        avatarUrlInput: document.getElementById('avatarUrlInput'),
+        saveAvatarUrlBtn: document.getElementById('saveAvatarUrlBtn'),
+        resetAvatarBtn: document.getElementById('resetAvatarBtn'),
+        authorHeroImg: document.getElementById('authorHeroImg'),
+        authorAboutImg: document.getElementById('authorAboutImg')
+      };
+
+      // Estado Global
+      const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800";
+      
+      let state = {
+        works: [],
+        filter: 'todos',
+        searchQuery: '',
+        currentWork: null,
+        readerFontSize: 18,
+        readerTheme: 'classic',
+        bgAudioPlaying: false,
+        ambientSynthType: 'none',
+        authorAvatar: localStorage.getItem('michael_avalia_avatar') || DEFAULT_AVATAR
+      };
+
+      // Datos iniciales si no hay en Firestore
+<!-- ... existing code ... -->
+        renderWorks();
+        initReaderTheme();
+        setupEventListeners();
+        updateAvatarUI();
+        
+        // Cargar desde Firestore si hay conexión
+        loadFirestoreData();
+      }
+
+      function updateAvatarUI() {
+        const avatarUrl = state.authorAvatar || DEFAULT_AVATAR;
+        if (elements.authorHeroImg) elements.authorHeroImg.src = avatarUrl;
+        if (elements.authorAboutImg) elements.authorAboutImg.src = avatarUrl;
+      }
+
+      async function saveAvatar(newUrl) {
+        state.authorAvatar = newUrl;
+        localStorage.setItem('michael_avalia_avatar', newUrl);
+        updateAvatarUI();
+        
+        // Guardar en Firestore si está autenticado
+        if (db && isFirebaseInit) {
+          try {
+            const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'profile');
+            await setDoc(configRef, { authorAvatar: newUrl }, { merge: true });
+          } catch (err) {
+            console.warn('Error guardando avatar en Firestore:', err);
+          }
+        }
+      }
+
+      function setupEventListeners() {
+<!-- ... existing code ... -->
+        elements.bgAudioBtn?.addEventListener('click', toggleBgAudio);
+        elements.ambientSelect?.addEventListener('change', changeAmbientSynth);
+        elements.ambientVolume?.addEventListener('input', updateAmbientVolume);
+
+        // Modal Cambiar Foto Perfil
+        const openAvatarModal = () => elements.avatarModal.classList.remove('hidden');
+        const closeAvatarModal = () => elements.avatarModal.classList.add('hidden');
+
+        elements.changeAvatarBtnHero?.addEventListener('click', openAvatarModal);
+        elements.changeAvatarBtnAbout?.addEventListener('click', openAvatarModal);
+        elements.closeAvatarModalBtn?.addEventListener('click', closeAvatarModal);
+
+        elements.avatarFileInput?.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+              saveAvatar(evt.target.result);
+              closeAvatarModal();
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+        elements.saveAvatarUrlBtn?.addEventListener('click', () => {
+          const url = elements.avatarUrlInput.value.trim();
+          if (url) {
+            saveAvatar(url);
+            elements.avatarUrlInput.value = '';
+            closeAvatarModal();
+          }
+        });
+
+        elements.resetAvatarBtn?.addEventListener('click', () => {
+          saveAvatar(DEFAULT_AVATAR);
+          closeAvatarModal();
+        });
+      }
+
+      // --- Carga de Datos Firestore ---
+      async function loadFirestoreData() {
+        if (!db) return;
+        
+        try {
+          // Cargar Avatar
+          const profileDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'profile'));
+          if (profileDoc.exists() && profileDoc.data().authorAvatar) {
+            state.authorAvatar = profileDoc.data().authorAvatar;
+            localStorage.setItem('michael_avalia_avatar', state.authorAvatar);
+            updateAvatarUI();
+          }
+
+          // Cargar Obras
+          const worksCol = collection(db, 'artifacts', appId, 'public', 'data', 'works');
+          onSnapshot(worksCol, (snapshot) => {
+            if (!snapshot.empty) {
+              state.works = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              renderWorks();
+            }
+          }, (error) => console.warn('Error Firestore listener:', error));
+        } catch (e) {
+          console.warn('Error en conexión Firestore, usando cache local:', e);
+        }
+      }
+<!-- ... existing code ... -->
+      <!-- Hero Section -->
+      <section class="relative pt-32 pb-20 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <div class="lg:col-span-7 space-y-6">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs tracking-wider uppercase">
+                <i class="fas fa-feather-alt"></i> Portal Oficial de Autor
+              </div>
+              <h1 class="font-serif text-5xl md:text-7xl font-bold text-stone-100 leading-tight">
+                Palabras que trascienden el <span class="text-amber-500 italic">tiempo</span>.
+              </h1>
+              <p class="text-stone-400 text-lg md:text-xl font-light leading-relaxed max-w-2xl">
+                Explora el universo literario de Michael Avalia. Novelas históricas, poesía contemporánea y narrativa fantástica que invitan a perderse en el arte de contar historias.
+              </p>
+              <div class="pt-4 flex flex-wrap gap-4 items-center">
+                <a href="#obras" class="px-8 py-3.5 rounded-full bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium transition shadow-lg shadow-amber-600/20 flex items-center gap-2">
+                  <i class="fas fa-book-open"></i> Explorar Obras
+                </a>
+                <a href="#sobre-mi" class="px-8 py-3.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 font-medium transition border border-stone-700">
+                  Conocer al Autor
+                </a>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 flex justify-center">
+              <div class="relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-amber-600 to-amber-800 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
+                <div class="relative rounded-2xl overflow-hidden border border-stone-700 bg-stone-900 aspect-[3/4] max-w-sm w-full">
+                  <img id="authorHeroImg" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800" alt="Michael Avalia" class="w-full h-full object-cover grayscale hover:grayscale-0 transition duration-700">
+                  <div class="absolute inset-0 bg-gradient-to-t from-stone-950 via-transparent to-transparent"></div>
+                  
+                  <!-- Botón interactivo para editar foto -->
+                  <button id="changeAvatarBtnHero" class="absolute top-4 right-4 bg-stone-900/80 hover:bg-amber-600 text-stone-300 hover:text-stone-950 backdrop-blur-md border border-stone-700/50 p-2.5 rounded-full transition shadow-lg group/btn" title="Cambiar Foto de Perfil">
+                    <i class="fas fa-camera text-sm"></i>
+                  </button>
+
+                  <div class="absolute bottom-6 left-6 right-6 text-center">
+                    <span class="text-amber-400 font-serif text-2xl font-bold block">Michael Avalia</span>
+                    <span class="text-stone-400 text-sm tracking-widest uppercase">Escritor & Ensayista</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+<!-- ... existing code ... -->
+      <!-- Sobre Mí -->
+      <section id="sobre-mi" class="py-24 bg-stone-900/50 border-y border-stone-800 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+            
+            <div class="md:col-span-5 relative">
+              <div class="aspect-square rounded-2xl overflow-hidden border border-stone-700 relative group">
+                <img id="authorAboutImg" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800" alt="Michael Avalia Retrato" class="w-full h-full object-cover">
+                
+                <!-- Botón interactivo para editar foto -->
+                <button id="changeAvatarBtnAbout" class="absolute top-4 right-4 bg-stone-900/80 hover:bg-amber-600 text-stone-300 hover:text-stone-950 backdrop-blur-md border border-stone-700/50 p-2.5 rounded-full transition shadow-lg" title="Cambiar Foto de Perfil">
+                  <i class="fas fa-camera text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="md:col-span-7 space-y-6">
+              <span class="text-amber-500 text-xs tracking-widest uppercase font-semibold">Biografía</span>
+              <h2 class="font-serif text-3xl md:text-4xl font-bold text-stone-100">Entre el mito y la realidad cotidiana</h2>
+              <p class="text-stone-400 leading-relaxed">
+                Nacido con una fascinación innata por las leyendas antiguas y los dilemas humanos contemporáneos, Michael Avalia ha dedicado más de una década a construir universos donde la fantasía se entrelaza de forma sutil con la historia real.
+              </p>
+              <p class="text-stone-400 leading-relaxed">
+                Ganador de diversos certámenes narrativos regionales, su estilo se distingue por descripciones poéticas, un ritmo envolvente y personajes profundamente complejos que cuestionan el destino y la libertad.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+<!-- ... existing code ... -->
+  <!-- Modal Cambiar Foto de Perfil -->
+  <div id="avatarModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-stone-800 rounded-2xl w-full max-w-md p-6 relative space-y-6 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-stone-800 pb-4">
+        <h3 class="font-serif text-xl font-bold text-stone-100 flex items-center gap-2">
+          <i class="fas fa-user-circle text-amber-500"></i> Cambiar Foto Principal
+        </h3>
+        <button id="closeAvatarModalBtn" class="text-stone-400 hover:text-stone-100 transition">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Opción 1: Archivo Local -->
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-stone-300">Cargar desde tu dispositivo</label>
+        <input type="file" id="avatarFileInput" accept="image/*" class="w-full text-sm text-stone-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-stone-800 file:text-amber-400 hover:file:bg-stone-700 cursor-pointer">
+      </div>
+
+      <div class="relative flex py-1 items-center">
+        <div class="flex-grow border-t border-stone-800"></div>
+        <span class="flex-shrink mx-4 text-xs text-stone-500 uppercase">o bien</span>
+        <div class="flex-grow border-t border-stone-800"></div>
+      </div>
+
+      <!-- Opción 2: URL Externa -->
+      <div class="space-y-3">
+        <label class="block text-sm font-medium text-stone-300">URL de Imagen Externa</label>
+        <div class="flex gap-2">
+          <input type="url" id="avatarUrlInput" placeholder="https://ejemplo.com/foto.jpg" class="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-2 text-stone-200 text-sm focus:outline-none focus:border-amber-500">
+          <button id="saveAvatarUrlBtn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium rounded-xl text-sm transition">
+            Aplicar
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-stone-800 pt-4 flex justify-between items-center">
+        <button id="resetAvatarBtn" class="text-xs text-red-400 hover:text-red-300 transition flex items-center gap-1">
+          <i class="fas fa-undo"></i> Restablecer foto original
+        </button>
+      </div>
+    </div>
+  </div>
+<!-- ... existing code ... -->
